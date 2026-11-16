@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AuthService {
@@ -43,5 +44,18 @@ class AuthService {
 
   Future<void> logout() async {
     await _client.auth.signOut();
+  }
+
+  Future<void> recuperarPalavraPasse(String email) async {
+    try {
+      await _client.auth.resetPasswordForEmail(
+        email,
+        redirectTo: kIsWeb ? 'http://localhost:3000/' : 'flappyiscte://callback/',
+      );
+    } on AuthException catch (e) {
+      throw Exception('Erro ao recuperar palavra-passe: ${e.message}');
+    } catch (e) {
+      throw Exception('Não foi possível enviar o e-mail de recuperação. Tenta novamente.');
+    }
   }
 }

@@ -80,6 +80,106 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _mostrarDialogRecuperarPalavraPasse() async {
+    final emailDialogController = TextEditingController(text: _emailController.text.trim());
+    final formKeyDialog = GlobalKey<FormState>();
+
+    await showDialog(
+      context: context,
+      builder: (dialogContext) {
+        bool enviandoDialog = false;
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Recuperar Palavra-passe'),
+              content: Form(
+                key: formKeyDialog,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: emailDialogController,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: const InputDecoration(
+                        labelText: 'Email',
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (valor) {
+                        final v = valor?.trim() ?? '';
+                        if (v.isEmpty) {
+                          return 'Introduz o teu email.';
+                        }
+                        return null;
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: enviandoDialog
+                      ? null
+                      : () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancelar'),
+                ),
+                enviandoDialog
+                    ? const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16.0),
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      )
+                    : ElevatedButton(
+                        onPressed: () async {
+                          if (!formKeyDialog.currentState!.validate()) {
+                            return;
+                          }
+
+                          final emailInput = emailDialogController.text.trim();
+
+                          setDialogState(() {
+                            enviandoDialog = true;
+                          });
+
+                          final scaffoldMessenger = ScaffoldMessenger.of(context);
+                          final navigator = Navigator.of(dialogContext);
+
+                          try {
+                            await _authService.recuperarPalavraPasse(emailInput);
+                            if (!mounted) return;
+                            navigator.pop();
+                            scaffoldMessenger.showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'E-mail de recuperação enviado! Verifica a tua caixa de entrada.',
+                                ),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          } catch (e) {
+                            if (!mounted) return;
+                            navigator.pop();
+                            final mensagem = e.toString().replaceAll('Exception: ', '');
+                            scaffoldMessenger.showSnackBar(
+                              SnackBar(
+                                content: Text(mensagem),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        },
+                        child: const Text('Enviar'),
+                      ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -145,6 +245,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       onPressed: _submeterLogin,
                       child: const Text('Entrar'),
                     ),
+              const SizedBox(height: 8.0),
+              TextButton(
+                onPressed: _mostrarDialogRecuperarPalavraPasse,
+                child: const Text('Esqueci-me da palavra-passe?'),
+              ),
               const SizedBox(height: 16.0),
               TextButton(
                 onPressed: () {
