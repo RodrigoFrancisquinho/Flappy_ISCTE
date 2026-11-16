@@ -30,6 +30,7 @@ class MyApp extends StatelessWidget {
     final session = Supabase.instance.client.auth.currentSession;
 
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'Flappy Game',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
@@ -52,14 +53,15 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   bool _isAdmin = false;
+  int _moedas = 0;
 
   @override
   void initState() {
     super.initState();
-    _verificarAdmin();
+    _carregarPerfil();
   }
 
-  Future<void> _verificarAdmin() async {
+  Future<void> _carregarPerfil() async {
     try {
       final perfil = await PerfilService().obterPerfil();
 
@@ -81,15 +83,17 @@ class _MyHomePageState extends State<MyHomePage> {
       if (mounted) {
         setState(() {
           _isAdmin = perfil['is_admin'] == true;
+          _moedas = (perfil['moedas'] as int?) ?? 0;
         });
       }
     } catch (_) {}
   }
 
-  void _openGame() {
-    Navigator.of(context).push(
+  Future<void> _openGame() async {
+    await Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const GamePage()),
     );
+    _carregarPerfil();
   }
 
   void _openLeaderboard() {
@@ -98,26 +102,17 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  void _openDefinicoes() {
-    Navigator.of(context).push(
+  Future<void> _openDefinicoes() async {
+    await Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const DefinicoesPage()),
     );
+    _carregarPerfil();
   }
 
   void _openAdmin() {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const AdminPage()),
     );
-  }
-
-  Future<void> _logout() async {
-    await AuthService().logout();
-    if (mounted) {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-        (route) => false,
-      );
-    }
   }
 
   @override
@@ -127,6 +122,30 @@ class _MyHomePageState extends State<MyHomePage> {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text(widget.title),
         actions: [
+          Container(
+            margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+            padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.0),
+            decoration: BoxDecoration(
+              color: Colors.amber.shade100,
+              borderRadius: BorderRadius.circular(16.0),
+              border: Border.all(color: Colors.amber.shade700, width: 1.5),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('🪙', style: TextStyle(fontSize: 16)),
+                const SizedBox(width: 4),
+                Text(
+                  '$_moedas',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.amber.shade900,
+                    fontSize: 15,
+                  ),
+                ),
+              ],
+            ),
+          ),
           if (_isAdmin)
             IconButton(
               icon: const Icon(Icons.admin_panel_settings),
@@ -142,11 +161,6 @@ class _MyHomePageState extends State<MyHomePage> {
             icon: const Icon(Icons.settings),
             tooltip: 'Definições',
             onPressed: _openDefinicoes,
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Terminar sessão',
-            onPressed: _logout,
           ),
         ],
       ),
@@ -171,6 +185,7 @@ class GamePage extends StatefulWidget {
 
 class _GamePageState extends State<GamePage> {
   bool _carregandoConfig = true;
+  Future<void>? _saveFuture;
 
   @override
   void initState() {
@@ -199,19 +214,49 @@ class _GamePageState extends State<GamePage> {
     }
   }
 
-  Future<void> _guardarPontuacao(BuildContext context, int score) async {
-    if (score <= 0) return;
+  void _aoTerminarJogo(int score, int coins) {
+    setState(() {
+      _saveFuture = _guardarResultadoPartida(score, coins);
+    });
+  }
 
-    try {
-      await ScoreService().guardarPontuacao(score);
-    } catch (_) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Não foi possível guardar a pontuação.'),
-          ),
-        );
+  Future<void> _guardarResultadoPartida(int score, int coins) async {
+    if (score > 0) {
+      try {
+        await ScoreService().guardarPontuacao(score);
+      } catch (_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Não foi possível guardar a pontuação.'),
+            ),
+          );
+        }
       }
+    }
+
+    if (coins > 0) {
+      try {
+        await PerfilService().adicionarMoedas(coins);
+      } catch (e) {
+        print('ERRO SUPABASE MOEDAS: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Não foi possível guardar as moedas apanhadas.'),
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _voltarParaMenu() async {
+    if (_saveFuture != null) {
+      await _saveFuture;
+    }
+    if (mounted) {
+      Navigator.of(context).pop();
     }
   }
 
@@ -223,24 +268,31 @@ class _GamePageState extends State<GamePage> {
       );
     }
 
-    return Scaffold(
-      body: Stack(
-        children: [
-          GameWidget.controlled(
-            gameFactory: () => FlappyGame(
-              onGameOver: (score) => _guardarPontuacao(context, score),
-            ),
-          ),
-          SafeArea(
-            child: Align(
-              alignment: Alignment.topLeft,
-              child: IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.white),
-                onPressed: () => Navigator.of(context).pop(),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        await _voltarParaMenu();
+      },
+      child: Scaffold(
+        body: Stack(
+          children: [
+            GameWidget.controlled(
+              gameFactory: () => FlappyGame(
+                onGameOver: _aoTerminarJogo,
               ),
             ),
-          ),
-        ],
+            SafeArea(
+              child: Align(
+                alignment: Alignment.topLeft,
+                child: IconButton(
+                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  onPressed: _voltarParaMenu,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

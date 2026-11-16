@@ -15,11 +15,35 @@ class PerfilService {
 
     final response = await _client
         .from('perfis')
-        .select('username, imagem_perfil, som_ativo, is_admin')
+        .select('username, imagem_perfil, som_ativo, is_admin, moedas')
         .eq('id', userId)
         .single();
 
     return response;
+  }
+
+  Future<int> adicionarMoedas(int moedasApanhadas) async {
+    if (moedasApanhadas <= 0) return 0;
+
+    final userId = currentUserId;
+    if (userId == null) {
+      throw const AuthException('Utilizador não autenticado.');
+    }
+
+    try {
+      final perfil = await obterPerfil();
+      final saldoAtual = (perfil['moedas'] as num?)?.toInt() ?? 0;
+      final novoSaldo = saldoAtual + moedasApanhadas;
+
+      await _client.from('perfis').update({
+        'moedas': novoSaldo,
+      }).eq('id', userId);
+
+      return novoSaldo;
+    } catch (e) {
+      print('ERRO SUPABASE MOEDAS (Service): $e');
+      rethrow;
+    }
   }
 
   Future<void> atualizarUsername(String username) async {
