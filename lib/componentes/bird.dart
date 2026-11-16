@@ -3,6 +3,7 @@ import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 
 import '../jogo.dart';
+import 'coin.dart';
 import 'pipe.dart';
 
 class Bird extends PositionComponent
@@ -60,6 +61,7 @@ class Bird extends PositionComponent
   void onCollisionStart(Set<Vector2> points, PositionComponent other) {
     super.onCollisionStart(points, other);
     if (other is Pipe) game.endGame();
+    if (other is Coin) other.collect();
   }
 }
 

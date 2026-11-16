@@ -6,6 +6,7 @@ import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 
 import 'componentes/bird.dart';
+import 'componentes/coin.dart';
 import 'componentes/pipe.dart';
 
 /// The game: owns state, spawns pipes, handles taps.
@@ -18,14 +19,15 @@ class FlappyGame extends FlameGame with TapCallbacks, HasCollisionDetection {
   static const double pipeWidth = 70;
   static double gapHeight = 300;
 
-
   late final Bird bird;
   late final TextComponent scoreText;
+  late final TextComponent coinsText;
   late final TextComponent messageText;
   late final TimerComponent spawner;
 
   final _rng = Random();
   int score = 0;
+  int coins = 0;
   bool started = false;
   bool isGameOver = false;
 
@@ -50,6 +52,20 @@ class FlappyGame extends FlameGame with TapCallbacks, HasCollisionDetection {
       ),
     );
 
+    coinsText = TextComponent(
+      text: '🪙 0',
+      anchor: Anchor.topRight,
+      position: Vector2(size.x - 20, 20),
+      priority: 10,
+      textRenderer: TextPaint(
+        style: const TextStyle(
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+          color: Colors.amber,
+        ),
+      ),
+    );
+
     messageText = TextComponent(
       anchor: Anchor.center,
       position: Vector2(size.x / 2, size.y * 0.35),
@@ -70,15 +86,18 @@ class FlappyGame extends FlameGame with TapCallbacks, HasCollisionDetection {
       onTick: _spawnPipes,
     );
 
-    await addAll([bird, scoreText, messageText, spawner]);
+    await addAll([bird, scoreText, coinsText, messageText, spawner]);
     _reset();
   }
 
   void _reset() {
     children.whereType<Pipe>().toList().forEach((p) => p.removeFromParent());
+    children.whereType<Coin>().toList().forEach((c) => c.removeFromParent());
     bird.reset(Vector2(size.x * 0.25, size.y / 2));
     score = 0;
+    coins = 0;
     scoreText.text = '0';
+    coinsText.text = '🪙 0';
     started = false;
     isGameOver = false;
     spawner.timer.stop();
@@ -90,6 +109,8 @@ class FlappyGame extends FlameGame with TapCallbacks, HasCollisionDetection {
     final maxTop = size.y - margin * 2 - gapHeight;
     final topHeight = margin + _rng.nextDouble() * maxTop;
     final bottomY = topHeight + gapHeight;
+    final gapCenterY = topHeight + (gapHeight / 2);
+    final coinX = size.x + (pipeWidth / 2);
 
     addAll([
       Pipe(
@@ -101,12 +122,20 @@ class FlappyGame extends FlameGame with TapCallbacks, HasCollisionDetection {
         position: Vector2(size.x, bottomY),
         size: Vector2(pipeWidth, size.y - bottomY),
       ),
+      Coin(
+        position: Vector2(coinX, gapCenterY),
+      ),
     ]);
   }
 
   void addPoint() {
     score++;
     scoreText.text = '$score';
+  }
+
+  void collectCoin() {
+    coins++;
+    coinsText.text = '🪙 $coins';
   }
 
   void endGame() {

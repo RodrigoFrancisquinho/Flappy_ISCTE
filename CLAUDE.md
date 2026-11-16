@@ -18,12 +18,14 @@ lib/
 ├── jogo.dart          # FlappyGame - core game logic (FlameGame + TapCallbacks + CollisionDetection)
 └── componentes/
     ├── bird.dart      # Bird component with physics, rendering, collision handling
+    ├── coin.dart      # Coin component spawned in pipe gaps, collectible on bird contact
     └── pipe.dart      # Pipe obstacle with movement, scoring, off-screen cleanup
 ```
 
 **Key classes:**
-- `FlappyGame` (`jogo.dart:12`) - Main game class, owns state, spawns pipes, handles taps
+- `FlappyGame` (`jogo.dart:12`) - Main game class, owns state, spawns pipes & coins, handles taps
 - `Bird` (`componentes/bird.dart:8`) - Player character with gravity/flap physics and custom rendering
+- `Coin` (`componentes/coin.dart:8`) - Collectible item spawned between pipes
 - `Pipe` (`componentes/pipe.dart:7`) - Obstacle that moves left, awards points when passed
 
 ## Commands
