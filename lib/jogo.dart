@@ -10,9 +10,13 @@ import 'componentes/pipe.dart';
 
 /// The game: owns state, spawns pipes, handles taps.
 class FlappyGame extends FlameGame with TapCallbacks, HasCollisionDetection {
-  static const double pipeSpeed = 160;
+  FlappyGame({this.onGameOver});
+
+  final void Function(int score)? onGameOver;
+
+  static double pipeSpeed = 160;
   static const double pipeWidth = 70;
-  static const double gapHeight = 300;
+  static double gapHeight = 300;
 
 
   late final Bird bird;
@@ -111,6 +115,7 @@ class FlappyGame extends FlameGame with TapCallbacks, HasCollisionDetection {
     spawner.timer.stop();
     // mandar score para os servers e adicionar pontos ao saldo da conta
     messageText.text = 'Game over\nTap to retry';
+    onGameOver?.call(score);
   }
 
   @override

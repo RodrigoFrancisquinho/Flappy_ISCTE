@@ -9,7 +9,7 @@ class Bird extends PositionComponent
     with CollisionCallbacks, HasGameReference<FlappyGame> {
   Bird() : super(size: Vector2.all(36), anchor: Anchor.center);
 
-  static const double gravity = 1200;
+  static double gravity = 1200;
   static const double flapImpulse = -420;
 
   double velocity = 0;
